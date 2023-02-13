@@ -21,8 +21,6 @@ void readSimulatedData() {
       // Open the "event data" dataset
       H5::Group group = file.openGroup("mantid_workspace_1/mask_workspace");
       H5::DataSet maskPosition = group.openDataSet("values");
-
-      // Get the dataspace of the dataset
       H5::DataSpace dataspace = maskPosition.getSpace();
 
       std::cout << "read data, manipulating into vectors" << std::endl;;
@@ -30,7 +28,7 @@ void readSimulatedData() {
       // Get the number of events
       int numPoints = dataspace.getSimpleExtentNpoints();
 
-      // Read the data from the dataset
+      // Read the data from the dataset into a vector
       std::vector<int> vectorMaskPosition(numPoints);
       maskPosition.read(vectorMaskPosition.data(), H5::PredType::NATIVE_INT);
 
@@ -38,6 +36,8 @@ void readSimulatedData() {
       // Separate the events into straws based on pixel ID
       for (int i = 0; i < numPoints; i++) {
         int straw = i / strawResolution;
+        // simulation has 0 in positions without mask, and 1 in positions with mask
+        // so we add an "event" where there isn't a mask
         if (vectorMaskPosition[i] == 0) {
           simulatedEvents[straw].push_back(i%strawResolution);
         }

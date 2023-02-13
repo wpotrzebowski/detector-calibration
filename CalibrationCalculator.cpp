@@ -2,15 +2,17 @@
 #include <iostream>
 #include <fstream> 
 #include "TGraph.h"
+#include <nlohmann/json.hpp>
 
-/// \brief takes measured and simulated events as a vector of vectors of ints, where each vector of ints represents a straw, and each int represents a neutron event's position along the straw
-/// and calculates a 4th order polynomial relationship between the measured peaks of events and the simulated peaks of events, then saving it to a json file
 void CalibrationCalculator::calculateCalibration(std::vector<std::vector<int>> measuredEvents, std::vector<std::vector<int>> simulatedEvents){
   std::map<int, std::vector<double>> calibrationPerStraw;
   for (int strawNumber = 0; strawNumber < measuredEvents.size(); strawNumber++){
+  // for (int strawNumber = 0; strawNumber < 1; strawNumber++){
     std::vector<double> measuredPeaks = getStrawPeaksGaussian(measuredEvents[strawNumber], strawNumber, "measured");
     std::vector<double> simulatedPeaks = getStrawPeaksSimple(simulatedEvents[strawNumber], strawNumber, "simulated");
-    if (measuredPeaks.size() != simulatedPeaks.size()){
+    
+
+    if (measuredPeaks.size() +1 != simulatedPeaks.size()){
       std::cout << "npeaks doesn't match, measured = " + std::to_string(measuredPeaks.size()) + " and simulated = " + std::to_string(simulatedPeaks.size()) << std::endl;
       //TODO, determine way to filter peaks so that they match
     }
@@ -19,24 +21,65 @@ void CalibrationCalculator::calculateCalibration(std::vector<std::vector<int>> m
       std::vector<double> calibrationParameters = calculateStrawCalibrationParameters(measuredPeaks, simulatedPeaks, strawNumber);
       calibrationPerStraw[strawNumber] = calibrationParameters;
     }
+    
   }
+ saveCalibrationParametersToFile(calibrationPerStraw);
 
 }
 
+void CalibrationCalculator::saveCalibrationParametersToFile(std::map<int, std::vector<double>> calibrationPerStraw){
+  using json = nlohmann::json;
+
+  // Create a JSON object
+  json j;
+  j["CaenCalibration"]["ntubes"] = 128;
+  j["CaenCalibration"]["nstraws"] = 7;
+  j["CaenCalibration"]["resolution"] = 512;
+  
+  std::vector<std::vector<double>> polynomials;
+  // Create an array of polynomials
+  for(double i = 0.0; i < 128*7; i++){
+    if (calibrationPerStraw.find(i) == calibrationPerStraw.end()){
+      std::vector<double> cal = {i, 0.0, 0.0, 0.0, 0.0};
+      polynomials.push_back(cal);
+    }
+    else{
+      std::vector<double> cal = {i};
+      cal.insert(cal.end(), calibrationPerStraw[i].begin(), calibrationPerStraw[i].end());
+      polynomials.push_back(cal);
+    }
+  }
+
+  j["CaenCalibration"]["polynomials"] = polynomials;
+
+  // Write the JSON data to a file
+  std::ofstream file("calibration.json");
+  file << j.dump(4) << std::endl;
+  file.close();
+
+}
 
 
 
 std::vector<double> CalibrationCalculator::calculateStrawCalibrationParameters(std::vector<double> measuredPeaks, std::vector<double> simulatedPeaks, int strawId){
   std::vector<double> result;
   const int n = measuredPeaks.size();
+  std::sort(measuredPeaks.begin(), measuredPeaks.end());
+  std::sort(simulatedPeaks.begin(), simulatedPeaks.end());
+  simulatedPeaks.erase(simulatedPeaks.begin()); 
+  for (int i = 0; i < n; i++){
+    std::cout << std::to_string(measuredPeaks[i]) << " " << std::to_string(simulatedPeaks[i]) << std::endl;
+    simulatedPeaks[i] = measuredPeaks[i] - simulatedPeaks[i];
+  }
 
   TGraph *graph = new TGraph(n, measuredPeaks.data(), simulatedPeaks.data());
-  TF1 *function = new TF1("f", "[0] + [1]*x + [2]*x^2 + [3]*x^3 + [4]*x^4", 0, strawResolution);
+  TF1 *function = new TF1("f", "[0] + [1]*x + [2]*x^2+ [3]*x^3", 0, strawResolution);
   graph->Fit(function, "Q");
 
   // getting each of the 4 polynomial values
-  for (int i = 0; i < 5; ++i) {
+  for (int i = 0; i < 4; ++i) {
     result.push_back(function->GetParameter(i));
+    std::cout << std::to_string(function->GetParameter(i)) << std::endl;
   }
 
   if (plottingGraphs){
@@ -94,8 +137,6 @@ std::vector<double> CalibrationCalculator::getStrawPeaksSimple(std::vector<int> 
   return x_y_peaks.first;
 }
 
-/// \brief takes the hits for a single straw and uses ROOTs ShowPeaks function for first pass, and then multi gaussian fitting to refine
-/// and returns the x values of the peaks on the straw
 std::vector<double> CalibrationCalculator::getStrawPeaksGaussian(std::vector<int> hits, int strawNum, std::string file_prefix){
   if(hits.size() == 0){
      std::vector<double> emptyVector;
@@ -130,8 +171,6 @@ std::vector<double> CalibrationCalculator::getStrawPeaksGaussian(std::vector<int
 }
 
 
-/// \brief given the x and y values of pre-calculated peaks, and a histogram, refines those peaks using multi-gaussian fits
-/// x will be adjusted according to the newly refined peak locations, return is void
 void CalibrationCalculator::gaussianFit(std::vector<double> x, std::vector<double> y, TH1D* histogram){
 	
   // setting up function string for length of multi gaussian needed, based on precalculated peaks
@@ -167,6 +206,10 @@ void CalibrationCalculator::gaussianFit(std::vector<double> x, std::vector<doubl
 	histogram->Fit(function, "E0", "", 100, 450);
   function->Draw("same");
   
+  double chi2 = function->GetChisquare();
+  double ndf = function->GetNDF();
+  double reduced_chi2 = chi2 / ndf;
+  std::cout << "reduced chi2 = " + std::to_string(reduced_chi2) << std::endl;
   // // getting the gaussian parameters - we don't use these for anything, could be removed
   // double* results = new double[npar];
   // function->GetParameters(results);
@@ -189,9 +232,7 @@ void CalibrationCalculator::writePeaksToFile(std::vector<double> peaks, std::str
   file.close();
 }
 
-// sorts the elements in array a from smallest to largest, and re-organises
-// array b the same way, regardless of the numerical order of elements in b
-// n is the length of both arrays a and b
+
 void CalibrationCalculator::selectionSort(std::vector<double> a, std::vector<double> b, int n) {
 	int i, j, min;
 	double  tempa, tempb;
@@ -214,4 +255,33 @@ void CalibrationCalculator::fillHistogram1D(std::vector<int> hits, TH1D* histogr
   for (int hit : hits) {
 		histogram->Fill(hit);
 	}
+}
+
+
+bool CalibrationCalculator::checkRange(std::vector<double> strawCalibrationParams){  
+  std::vector<double> range(strawResolution - 40);
+  for(int i = 20; i < strawResolution-20; i++){
+    range[i-20] = i; 
+  }
+  std::vector<double> result = applyCalibrationParams(range, strawCalibrationParams);
+  for(int i = 0; i < range.size(); i++){
+    if (not ((result[i] >= 0) && (result[i] <= strawResolution))){
+      return false;
+    }
+  }
+  return true;
+}
+
+
+// mirrors the way calibration parameters are applied in the EFU
+std::vector<double> CalibrationCalculator::applyCalibrationParams(std::vector<double> measured, std::vector<double> params){
+  std::vector<double> result;
+  for(int i = 0; i < measured.size(); i++){
+    double adjustedPosition = measured[i];
+    for(int j = 0; j < params.size(); j++){
+      adjustedPosition -= params[j] * pow(measured[i], j);
+    }
+    result.push_back(adjustedPosition);
+  }
+  return result;
 }
