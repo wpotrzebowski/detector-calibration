@@ -1,7 +1,6 @@
 #include <iostream>
 #include <vector>
 #include <map>
-#include <hdf5.h>
 #include <H5Cpp.h>
 
 // Define a class to read the HDF5 data
