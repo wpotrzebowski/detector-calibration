@@ -18,9 +18,9 @@ find_package(GTest REQUIRED)
 find_package(HDF5 COMPONENTS CXX HL)
 find_package(nlohmann_json REQUIRED)
 
-# include_directories(${HDF5_INCLUDE_DIRS})
-# include_directories(${GTEST_INCLUDE_DIRS})
-# include_directories(${ROOT_INCLUDE_DIRS})
+include_directories(${HDF5_INCLUDE_DIRS})
+include_directories(${GTEST_INCLUDE_DIRS})
+include_directories(${ROOT_INCLUDE_DIRS})
 
 #=============================================================================
 # Include subdirs
