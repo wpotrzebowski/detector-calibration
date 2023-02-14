@@ -130,10 +130,13 @@ std::vector<double> CalibrationCalculator::getStrawPeaksSimple(std::vector<int> 
   fillHistogram1D(hits, histogram);
   x_y_peaks = findPeaks(histogram);
   histogram->Draw();
-  canvas->Update();
-  std::string filename = file_prefix + "_canvas_" + std::to_string(strawNum) + ".png";
-  canvas->SaveAs(filename.c_str());
-
+  if(plottingGraphs){
+    canvas->Update();
+    std::string filename = file_prefix + "_canvas_" + std::to_string(strawNum) + ".png";
+    canvas->SaveAs(filename.c_str());
+  }
+  delete canvas;
+  delete histogram;
   return x_y_peaks.first;
 }
 

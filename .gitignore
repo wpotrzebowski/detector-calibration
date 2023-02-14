@@ -35,6 +35,7 @@
 build*/
 cmake-build-*/
 doxygen/
+data/
 # MacOs folder metadata
 .DS_Store
 

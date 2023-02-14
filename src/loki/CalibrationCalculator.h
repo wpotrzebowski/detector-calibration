@@ -10,7 +10,7 @@ class CalibrationCalculator {
 
 public:
   // whether graphs get saved to file or not
-  bool plottingGraphs = false;
+  bool plottingGraphs = true;
 
   // number of pixels per straw
   int strawResolution = 512;
