@@ -1,7 +1,7 @@
-#include "CalibrationCalculator.h"
+#include <loki/CalibrationCalculator.h>
 #include <iostream>
 #include <fstream> 
-#include "TGraph.h"
+#include <TGraph.h>
 #include <nlohmann/json.hpp>
 
 void CalibrationCalculator::calculateCalibration(std::vector<std::vector<int>> measuredEvents, std::vector<std::vector<int>> simulatedEvents){
@@ -66,7 +66,11 @@ std::vector<double> CalibrationCalculator::calculateStrawCalibrationParameters(s
   const int n = measuredPeaks.size();
   std::sort(measuredPeaks.begin(), measuredPeaks.end());
   std::sort(simulatedPeaks.begin(), simulatedPeaks.end());
+  
+  // specific to larmor 
   simulatedPeaks.erase(simulatedPeaks.begin()); 
+
+
   for (int i = 0; i < n; i++){
     std::cout << std::to_string(measuredPeaks[i]) << " " << std::to_string(simulatedPeaks[i]) << std::endl;
     simulatedPeaks[i] = measuredPeaks[i] - simulatedPeaks[i];
@@ -186,6 +190,8 @@ void CalibrationCalculator::gaussianFit(std::vector<double> x, std::vector<doubl
 	  }
 	}
 	sprintf(functionstring, "%s + pol2(%d)", functionstring, npeaks * 3);
+  
+  //TODO, set as parameters to the program, and store them in the calibration file
   TF1* function = new TF1("gaus", functionstring, 100, 450);
 
   // setting up function parameters, a y value, x value, and --- per straw, and then ...

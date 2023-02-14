@@ -1,9 +1,9 @@
 #include <TH1D.h>
 #include <TPolyMarker.h>
-#include "TList.h"
-#include "TF1.h"
+#include <TList.h>
+#include <TF1.h>
 #include <H5Cpp.h>
-#include "TCanvas.h"
+#include <TCanvas.h>
 
 
 class CalibrationCalculator {

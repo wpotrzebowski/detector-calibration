@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
-project(CalibrationCalculatorProject)
-
-include_directories(test)
+project("DetectorCalibrationFunctions")
 
 #=============================================================================
 # Augment CMake with our custom scripts
@@ -35,6 +33,9 @@ elseif(NOT ${CONAN} MATCHES "DISABLE")
   MESSAGE(FATAL_ERROR "Unrecognised option for CONAN (${CONAN}), use AUTO, MANUAL or DISABLE")
 endif()
 
+#=============================================================================
+# Code
+#=============================================================================
 
 add_subdirectory(src)
 
